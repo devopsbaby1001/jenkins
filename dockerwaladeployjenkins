@@ -1,0 +1,81 @@
+pipeline {
+    agent {
+        label 'dilkiduniya'
+    }
+    
+environment {
+    IMAGE="allokimg"
+    CONTAINER= "allokcontainer"
+    BRANCH= "main"
+}
+
+    stages {
+        stage('checkout') {
+            when{
+                branch "${BRANCH}"
+            }
+            steps {
+                echo 'fetching code from github'
+               git branch: 'main', url: 'https://github.com/devopsbaby1001/dock.git' 
+            }
+        }
+        stage('build') {
+            steps {
+                echo 'build is going on'
+                sh "docker build . -t ${IMAGE}"
+                sh "docker images "
+            }
+        }
+        stage('test image') {
+            steps {
+                echo 'testing...'
+                sh 'docker inspect --type=image ${IMAGE} '
+            }
+        }
+        stage('test container') {
+            steps {
+                echo 'testing...'
+                sh 'docker stop ${CONTAINER} || true '
+                sh 'docker rm ${CONTAINER} || true '
+
+                sh 'docker run -d -p80:80 --name ${CONTAINER} ${IMAGE} '
+                sh 'docker exec ${CONTAINER} ls '
+                
+            }
+        }
+        
+        stage ('cleaning'){
+            steps{
+                 sh 'docker stop ${CONTAINER} || true '
+                sh 'docker rm ${CONTAINER} || true '
+                
+            }
+        }
+        
+        
+        
+        
+        
+        stage('deploy') {
+            steps {
+                echo 'deploying on another server'
+            sh '   docker login -u devopsbaby -p dckr_pat_lrG1vQrY6XrcK4vEMMlRgvnZmUU'
+              sh ' docker tag pipewalanginx  devopsbaby/updatednginx'
+              sh ' docker push devopsbaby/updatednginx'
+              sh '''
+              ssh -i Jenkins.pem -o StrictHostKeyChecking=no ec2-user@13.235.114.23 << EOF
+              sudo docker login -u devopsbaby -p dckr_pat_lrG1vQrY6XrcK4vEMMlRgvnZmUU 
+              sudo docker stop mycontainer || true 
+              sudo docker rm mycontainer ||true 
+              sudo docker pull devopsbaby/updatednginx 
+              sudo  docker run -d -p80:80 --name mycontainer devopsbaby/updatednginx  
+             
+             '''
+              
+            }
+        }
+        
+        
+        
+    }
+}
